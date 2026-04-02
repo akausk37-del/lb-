@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>LuckyBid Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold: #f5c518;
+    --silver: #c8c8c8;
+    --bronze: #cd7f32;
+    --red: #e63946;
+    --blue: #5b9aff;
+    --green: #00e639;
+  }
+  body {
+    background: transparent !important;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 10px;
+    font-family: 'Nunito', sans-serif;
+    min-height: 100vh;
+  }
+  .widget {
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .badge {
+    background: rgba(10,12,18,0.92);
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .badge.no-min { color: var(--gold); gap: 6px; }
+  .badge.snipe  { justify-content: space-between; }
+  .snipe-value  { background: var(--red); border-radius: 4px; padding: 2px 10px; font-size: 12px; }
+
+  .card {
+    background: rgba(10,14,22,0.92);
+    border-radius: 16px;
+    padding: 14px 13px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  }
+
+  .timer-display {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 72px;
+    color: #fff;
+    letter-spacing: 4px;
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(255,255,255,0.1);
+    transition: color 0.3s;
+  }
+  .timer-display.danger      { color: var(--red);  animation: pulse 0.5s infinite alternate; }
+  .timer-display.snipe-phase { color: var(--blue); animation: pulse-blue 0.5s infinite alternate; }
+  .timer-display.finished    { color: var(--gold); }
+  @keyframes pulse      { from{text-shadow:0 0 8px rgba(230,57,70,.4)} to{text-shadow:0 0 28px rgba(230,57,70,.9)} }
+  @keyframes pulse-blue { from{text-shadow:0 0 8px rgba(91,154,255,.4)} to{text-shadow:0 0 28px rgba(91,154,255,.9)} }
+
+  .status-bar {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border-radius: 7px;
+    padding: 5px 10px;
+    font-size: 11px;
+    color: #666;
+    text-align: center;
+    letter-spacing: 1px;
+    font-weight: 700;
+    min-height: 24px;
+    transition: all 0.3s;
+  }
+  .status-bar.snipe  { color: var(--blue); background: rgba(91,154,255,0.1); }
+  .status-bar.ended  { color: var(--gold); background: rgba(245,197,24,0.1); }
+  .status-bar.active { color: var(--green); background: rgba(0,230,57,0.06); }
+
+  .hint { display: none; }
+
+  .leaderboard { width: 100%; display: flex; flex-direction: column; gap: 7px; }
+
+  .entry { display: flex; align-items: center; gap: 9px; border-radius: 11px; padding: 9px 11px; }
+  .entry.anim-new  { animation: slideIn 0.4s cubic-bezier(.34,1.56,.64,1); }
+  .entry.anim-bump { animation: bump 0.4s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-10px) scale(.96)} to{opacity:1;transform:none} }
+  @keyframes bump    { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
+
+  .entry.gold-entry   { background: linear-gradient(135deg,#c9960c,#f5c518 60%,#e0a800); }
+  .entry.silver-entry { background: linear-gradient(135deg,#8a8a8a,#c8c8c8 60%,#aeaeae); }
+  .entry.bronze-entry { background: linear-gradient(135deg,#8b5e1a,#cd7f32 60%,#b56a1e); }
+  .entry.other-entry  { background: rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.07); }
+
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 900; color: #fff;
+    flex-shrink: 0; position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .avatar-badge {
+    position: absolute; bottom: -2px; right: -2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; border: 2px solid rgba(0,0,0,0.4);
+    background: rgba(0,0,0,0.5);
+  }
+  .entry-info { flex: 1; min-width: 0; }
+  .entry-name { font-size: 16px; font-weight: 900; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry-coins { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.85); display: flex; align-items: center; gap: 3px; margin-top: 1px; }
+  .rank-num { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: rgba(255,255,255,0.4); flex-shrink: 0; }
+  .empty-msg { text-align: center; color: rgba(255,255,255,0.2); font-size: 12px; font-weight: 700; padding: 8px 0; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+<div class="widget">
+  <div class="badge no-min">✓ NO MINIMUM</div>
+  <div class="badge snipe">
+    <span>⚡ SNIPE DELAY</span>
+    <span class="snipe-value" id="snipeLabel">20S</span>
+  </div>
+  <div class="card">
+    <div class="timer-display" id="timerDisplay">1:00</div>
+    <div class="status-bar" id="statusBar"></div>
+    <div class="leaderboard" id="leaderboard">
+      <div class="empty-msg">Envoie des roses pour participer 🌹</div>
+    </div>
+    <div class="hint">1 = LANCER &nbsp;|&nbsp; 2 = RESET</div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════
+const DURATION    = 60;   // secondes
+const SNIPE_DELAY = 20;   // secondes
+// ══════════════════════════════════
+
+const COLORS = ['#1a7a56','#6a3d9c','#b03030','#1f6fa3','#c0671a','#148070','#7a3590','#b54010','#1a5c7a','#8a2040'];
+let colorMap = {}, colorIdx = 0;
+let participants = {};
+let timeLeft = DURATION, running = false, snipePhase = false, ended = false;
+let interval = null;
+
+function getColor(n) { if (!colorMap[n]) colorMap[n] = COLORS[colorIdx++ % COLORS.length]; return colorMap[n]; }
+function initials(n) { return n.replace(/[^a-zA-Z0-9]/g,'').slice(0,2).toUpperCase() || '??'; }
+
+// KEYBOARD
+document.addEventListener('keydown', e => {
+  if (e.key === '1') toggleTimer();
+  if (e.key === '2') resetAll();
+});
+
+function toggleTimer() {
+  if (ended) { resetAll(); return; }
+  if (running) { clearInterval(interval); interval = null; running = false; renderAll(); }
+  else startTimer();
+}
+
+function startTimer() {
+  if (ended || running) return;
+  running = true; renderAll();
+  interval = setInterval(tick, 1000);
+}
+
+function tick() {
+  if (timeLeft > 0) { timeLeft--; renderAll(); }
+  else if (!snipePhase) { snipePhase = true; timeLeft = SNIPE_DELAY; renderAll(); }
+  else { clearInterval(interval); interval = null; running = false; ended = true; renderAll(); }
+}
+
+function resetAll() {
+  clearInterval(interval); interval = null;
+  participants = {}; colorMap = {}; colorIdx = 0;
+  timeLeft = DURATION; running = false; snipePhase = false; ended = false;
+  renderAll();
+}
+
+// ══════════════════════════════════
+//  GIFT – appelé par TikFinity
+//  TikFinity → Custom Action → JS :
+//  window.addGift("{username}", {diamondCount})
+// ══════════════════════════════════
+window.addGift = function(name, coins) {
+  if (ended) return; // on ignore les gifts après la fin
+  name  = String(name).toUpperCase().trim();
+  coins = parseInt(coins) || 0;
+  if (!name || coins <= 0) return;
+
+  if (snipePhase && running) timeLeft = SNIPE_DELAY; // reset snipe
+
+  if (!participants[name]) {
+    participants[name] = { coins: 0, color: getColor(name), state: 'new' };
+  } else {
+    participants[name].state = 'bump';
+  }
+  participants[name].coins += coins;
+  renderAll();
+};
+window.onTikTokGift = window.addGift; // alias
+
+function getSorted() {
+  return Object.entries(participants)
+    .map(([name, d]) => ({ name, ...d }))
+    .sort((a, b) => b.coins - a.coins);
+}
+
+function renderAll() {
+  // Timer
+  const el   = document.getElementById('timerDisplay');
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  el.textContent = ended ? 'FINISH' : mins + ':' + String(secs).padStart(2, '0');
+  el.className = 'timer-display';
+  if      (ended)                     el.className = 'timer-display finished';
+  else if (snipePhase)                el.className = 'timer-display snipe-phase';
+  else if (timeLeft <= 10 && running) el.className = 'timer-display danger';
+
+  document.getElementById('snipeLabel').textContent = SNIPE_DELAY + 'S';
+
+  // Status
+  const sb = document.getElementById('statusBar');
+  if (ended) {
+    const s = getSorted();
+    sb.textContent = s.length > 0 ? '🏆 WINNER : ' + s[0].name + ' – $' + s[0].coins.toLocaleString('fr') : 'FINISH';
+    sb.className = 'status-bar ended';
+  } else if (snipePhase) {
+    sb.textContent = '⚡ SNIPE DELAY – ' + timeLeft + 'S';
+    sb.className   = 'status-bar snipe';
+  } else if (running) {
+    sb.textContent = '';
+    sb.className   = 'status-bar active';
+  } else {
+    sb.textContent = '';
+    sb.className   = 'status-bar';
+  }
+
+  // Leaderboard
+  const sorted = getSorted();
+  const lb     = document.getElementById('leaderboard');
+  if (sorted.length === 0) { lb.innerHTML = '<div class="empty-msg">Envoie des roses pour participer 🌹</div>'; return; }
+
+  const medals = ['gold-entry','silver-entry','bronze-entry'];
+  const badges = ['👑','🥈','🥉'];
+
+  lb.innerHTML = sorted.slice(0, 8).map((p, i) => {
+    const cls  = medals[i] || 'other-entry';
+    const anim = p.state === 'new' ? 'anim-new' : p.state === 'bump' ? 'anim-bump' : '';
+    participants[p.name].state = '';
+    return `
+      <div class="entry ${cls} ${anim}">
+        <div class="avatar" style="background:${p.color}">
+          ${initials(p.name)}
+          ${i < 3 ? `<div class="avatar-badge">${badges[i]}</div>` : ''}
+        </div>
+        <div class="entry-info">
+          <div class="entry-name">${p.name}</div>
+          <div class="entry-coins">$ ${p.coins.toLocaleString('fr')}</div>
+        </div>
+        <div class="rank-num">${i === 0 ? '🏆' : '#'+(i+1)}</div>
+      </div>`;
+  }).join('');
+}
+
+renderAll();
+</script>
+</body>
+</html>
