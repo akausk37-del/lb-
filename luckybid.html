@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LuckyBid</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: transparent;
+    font-family: 'Rajdhani', sans-serif;
+    width: 340px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ═══ OVERLAY ═══ */
+  #overlay { width: 340px; padding: 12px; }
+
+  .card {
+    background: linear-gradient(135deg, rgba(10,10,20,0.97) 0%, rgba(20,10,40,0.97) 100%);
+    border: 1px solid rgba(255,200,0,0.3);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 0 30px rgba(255,180,0,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(ellipse at center, rgba(255,180,0,0.04) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 2px;
+    background: linear-gradient(135deg, #FFD700, #FF8C00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 8px rgba(255,180,0,0.5));
+  }
+
+  .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .status-badge.waiting  { background: rgba(255,255,255,0.1); color: #888; }
+  .status-badge.running  { background: rgba(0,255,100,0.15); color: #00ff64; border: 1px solid rgba(0,255,100,0.3); animation: pg 2s infinite; }
+  .status-badge.snipe    { background: rgba(0,150,255,0.15); color: #00aaff; border: 1px solid rgba(0,150,255,0.3); animation: pb 1s infinite; }
+  .status-badge.finished { background: rgba(255,180,0,0.15); color: #FFD700; border: 1px solid rgba(255,180,0,0.4); }
+  @keyframes pg { 0%,100%{opacity:1} 50%{opacity:0.6} }
+  @keyframes pb { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  .timer-block { text-align: center; margin-bottom: 14px; position: relative; }
+  .timer-ring { width: 110px; height: 110px; margin: 0 auto 8px; position: relative; }
+  .timer-ring svg { transform: rotate(-90deg); width: 110px; height: 110px; }
+  .ring-bg   { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 5; }
+  .ring-fill { fill: none; stroke: #FFD700; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke 0.5s; }
+  .ring-fill.snipe { stroke: #00aaff; }
+
+  .timer-text {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px; color: #fff; letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(255,180,0,0.5);
+    white-space: nowrap;
+  }
+  .timer-text.snipe  { color: #00aaff; text-shadow: 0 0 20px rgba(0,170,255,0.5); }
+  .timer-text.finish { font-size: 28px; color: #FFD700; animation: fg 1.5s infinite alternate; }
+  @keyframes fg { from{text-shadow:0 0 10px rgba(255,180,0,0.5)} to{text-shadow:0 0 30px rgba(255,180,0,1),0 0 60px rgba(255,100,0,0.5)} }
+
+  .snipe-label { font-size: 11px; color: #00aaff; letter-spacing: 2px; text-transform: uppercase; opacity: 0; transition: opacity 0.3s; }
+  .snipe-label.visible { opacity: 1; }
+
+  .leaderboard-title { font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  .leaderboard { display: flex; flex-direction: column; gap: 6px; }
+
+  .entry { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); animation: si 0.4s ease; }
+  @keyframes si { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
+  .entry.rank-1 { background: linear-gradient(135deg,rgba(255,180,0,0.12),rgba(255,100,0,0.08)); border-color: rgba(255,180,0,0.3); box-shadow: 0 0 15px rgba(255,180,0,0.1); }
+  .entry.rank-2 { background: linear-gradient(135deg,rgba(180,180,200,0.1),rgba(150,150,170,0.06)); border-color: rgba(180,180,200,0.2); }
+  .entry.rank-3 { background: linear-gradient(135deg,rgba(180,100,40,0.1),rgba(150,80,30,0.06)); border-color: rgba(180,100,40,0.2); }
+  .rank-icon { font-size: 16px; width: 20px; text-align: center; }
+  .rank-num  { font-size: 13px; color: rgba(255,255,255,0.3); width: 20px; text-align: center; font-weight: 700; }
+  .entry-name { flex: 1; font-size: 14px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry-coins { font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: #FFD700; letter-spacing: 1px; }
+  .entry-coins::after { content: ' 🪙'; font-size: 12px; }
+
+  .winner-banner { display: none; text-align: center; padding: 12px; margin-bottom: 14px; border-radius: 12px; background: linear-gradient(135deg,rgba(255,180,0,0.2),rgba(255,100,0,0.1)); border: 1px solid rgba(255,180,0,0.4); animation: wp 2s infinite alternate; }
+  .winner-banner.visible { display: block; }
+  @keyframes wp { from{box-shadow:0 0 15px rgba(255,180,0,0.2)} to{box-shadow:0 0 30px rgba(255,180,0,0.5)} }
+  .winner-label { font-size: 11px; color: rgba(255,180,0,0.7); letter-spacing: 2px; text-transform: uppercase; }
+  .winner-name  { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: #FFD700; letter-spacing: 3px; }
+  .empty-msg { text-align: center; color: rgba(255,255,255,0.2); font-size: 12px; padding: 10px; letter-spacing: 1px; }
+
+  /* ═══ ADMIN PANEL ═══ */
+  #adminPanel {
+    display: none;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.93);
+    z-index: 9999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px;
+  }
+  #adminPanel.open { display: flex; }
+
+  .admin-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; background: linear-gradient(135deg,#FFD700,#FF8C00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 3px; }
+  .admin-timer { font-family: 'Bebas Neue', sans-serif; font-size: 56px; color: #FFD700; letter-spacing: 4px; }
+  .admin-hint  { font-size: 12px; color: rgba(255,255,255,0.2); letter-spacing: 1px; }
+
+  .setup-row { display: flex; gap: 12px; width: 100%; max-width: 360px; }
+  .setup-item { flex: 1; }
+  .setup-item label { display: block; font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; }
+  .setup-item input { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 10px 12px; color: #fff; font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; outline: none; text-align: center; }
+  .setup-item input:focus { border-color: rgba(255,180,0,0.4); }
+
+  .btn-admin { width: 100%; max-width: 360px; padding: 18px; border: none; border-radius: 14px; font-family: 'Bebas Neue', sans-serif; font-size: 30px; letter-spacing: 3px; cursor: pointer; transition: transform 0.15s, box-shadow 0.2s; }
+  .btn-admin:active { transform: scale(0.96); }
+  .btn-start { background: linear-gradient(135deg,#FFD700,#FF8C00); color: #000; box-shadow: 0 4px 20px rgba(255,180,0,0.3); }
+  .btn-start:hover { box-shadow: 0 4px 30px rgba(255,180,0,0.55); }
+  .btn-reset { background: transparent; color: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.12); font-size: 20px; padding: 14px; }
+  .btn-reset:hover { border-color: rgba(255,80,80,0.4); color: #ff6464; }
+  .btn-close { background: transparent; color: rgba(255,255,255,0.2); border: none; font-size: 13px; letter-spacing: 1px; cursor: pointer; padding: 6px 12px; font-family: 'Rajdhani', sans-serif; }
+  .btn-close:hover { color: rgba(255,255,255,0.5); }
+</style>
+</head>
+<body>
+
+<!-- OVERLAY -->
+<div id="overlay">
+  <div class="card">
+    <div class="header">
+      <div class="logo">LuckyBid</div>
+      <div class="status-badge waiting" id="statusBadge">EN ATTENTE</div>
+    </div>
+    <div class="winner-banner" id="winnerBanner">
+      <div class="winner-label">🏆 WINNER</div>
+      <div class="winner-name" id="winnerName">-</div>
+    </div>
+    <div class="timer-block">
+      <div class="timer-ring">
+        <svg viewBox="0 0 110 110">
+          <circle class="ring-bg" cx="55" cy="55" r="48"/>
+          <circle class="ring-fill" id="ringFill" cx="55" cy="55" r="48" stroke-dasharray="301.6" stroke-dashoffset="0"/>
+        </svg>
+        <div class="timer-text" id="timerText">00:00</div>
+      </div>
+      <div class="snipe-label" id="snipeLabel">⚡ SNIPE DELAY</div>
+    </div>
+    <div class="leaderboard-title">Classement</div>
+    <div class="leaderboard" id="leaderboard">
+      <div class="empty-msg">En attente des participants...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN (F2) -->
+<div id="adminPanel">
+  <div class="admin-title">⚡ Admin LuckyBid</div>
+  <div class="admin-timer" id="adminTimer">--:--</div>
+  <div class="setup-row">
+    <div class="setup-item">
+      <label>Durée (sec)</label>
+      <input type="number" id="inputDuration" value="60" min="10" max="3600"/>
+    </div>
+    <div class="setup-item">
+      <label>Snipe (sec)</label>
+      <input type="number" id="inputSnipe" value="20" min="5" max="60"/>
+    </div>
+  </div>
+  <button class="btn-admin btn-start" id="btnStart" onclick="startTimer()">▶ START</button>
+  <button class="btn-admin btn-reset" onclick="resetTimer()">↺ RESET</button>
+  <button class="btn-close" onclick="toggleAdmin()">✕ Fermer — F2</button>
+  <div class="admin-hint">Appuie sur F2 pour ouvrir / fermer</div>
+</div>
+
+<script>
+  const CIRC = 301.6;
+  let state = { phase:'waiting', duration:60, snipeMax:20, timeLeft:60, snipeLeft:20, participants:{}, winner:null };
+  let interval = null;
+
+  const $ = id => document.getElementById(id);
+  const ringFill    = $('ringFill');
+  const timerText   = $('timerText');
+  const snipeLabel  = $('snipeLabel');
+  const statusBadge = $('statusBadge');
+  const leaderboard = $('leaderboard');
+  const winnerBanner= $('winnerBanner');
+  const winnerName  = $('winnerName');
+  const adminTimer  = $('adminTimer');
+  const adminPanel  = $('adminPanel');
+  const btnStart    = $('btnStart');
+
+  function toggleAdmin() { adminPanel.classList.toggle('open'); }
+  document.addEventListener('keydown', e => { if (e.key === 'F2') { e.preventDefault(); toggleAdmin(); } });
+
+  function fmt(s) {
+    s = Math.max(0, s);
+    return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  }
+
+  function setRing(cur, total, isSnipe) {
+    const r = total > 0 ? Math.max(0, cur/total) : 0;
+    ringFill.style.strokeDashoffset = CIRC * (1 - r);
+    ringFill.classList.toggle('snipe', isSnipe);
+  }
+
+  function render() {
+    const { phase, timeLeft, snipeLeft, snipeMax, duration, participants, winner } = state;
+
+    if (phase === 'waiting') {
+      timerText.textContent = fmt(duration); timerText.className = 'timer-text';
+      adminTimer.textContent = fmt(duration);
+      setRing(1,1,false);
+      statusBadge.className = 'status-badge waiting'; statusBadge.textContent = 'EN ATTENTE';
+      snipeLabel.className = 'snipe-label'; winnerBanner.className = 'winner-banner';
+    } else if (phase === 'running') {
+      timerText.textContent = fmt(timeLeft); timerText.className = 'timer-text';
+      adminTimer.textContent = fmt(timeLeft);
+      setRing(timeLeft, duration, false);
+      statusBadge.className = 'status-badge running'; statusBadge.textContent = 'LIVE';
+      snipeLabel.className = 'snipe-label'; winnerBanner.className = 'winner-banner';
+    } else if (phase === 'snipe') {
+      timerText.textContent = fmt(snipeLeft); timerText.className = 'timer-text snipe';
+      adminTimer.textContent = fmt(snipeLeft);
+      setRing(snipeLeft, snipeMax, true);
+      statusBadge.className = 'status-badge snipe'; statusBadge.textContent = 'SNIPE';
+      snipeLabel.className = 'snipe-label visible'; winnerBanner.className = 'winner-banner';
+    } else if (phase === 'finished') {
+      timerText.textContent = 'FINISH'; timerText.className = 'timer-text finish';
+      adminTimer.textContent = 'FINISH';
+      setRing(0,1,false);
+      statusBadge.className = 'status-badge finished'; statusBadge.textContent = 'TERMINÉ';
+      snipeLabel.className = 'snipe-label';
+      if (winner) { winnerBanner.className = 'winner-banner visible'; winnerName.textContent = winner; }
+    }
+
+    const entries = Object.entries(participants);
+    if (entries.length > 0) {
+      const sorted = entries.sort((a,b) => b[1]-a[1]).slice(0,5);
+      const icons = ['🥇','🥈','🥉'];
+      leaderboard.innerHTML = sorted.map(([name,coins],i) => {
+        const rc = i<3?`rank-${i+1}`:'';
+        const ic = i<3?`<span class="rank-icon">${icons[i]}</span>`:`<span class="rank-num">${i+1}</span>`;
+        return `<div class="entry ${rc}">${ic}<span class="entry-name">${name}</span><span class="entry-coins">${coins.toLocaleString()}</span></div>`;
+      }).join('');
+    } else {
+      leaderboard.innerHTML = '<div class="empty-msg">En attente des participants...</div>';
+    }
+  }
+
+  function startTimer() {
+    if (state.phase === 'running' || state.phase === 'snipe') return;
+    state.duration  = parseInt($('inputDuration').value) || 60;
+    state.snipeMax  = parseInt($('inputSnipe').value) || 20;
+    state.timeLeft  = state.duration;
+    state.snipeLeft = state.snipeMax;
+    state.phase     = 'running';
+    state.winner    = null;
+    btnStart.textContent = '▶ EN COURS';
+    clearInterval(interval);
+    interval = setInterval(tick, 1000);
+    render();
+  }
+
+  function resetTimer() {
+    clearInterval(interval);
+    state = {
+      phase:'waiting',
+      duration: parseInt($('inputDuration').value)||60,
+      snipeMax: parseInt($('inputSnipe').value)||20,
+      timeLeft: parseInt($('inputDuration').value)||60,
+      snipeLeft: parseInt($('inputSnipe').value)||20,
+      participants:{}, winner:null
+    };
+    btnStart.textContent = '▶ START';
+    render();
+  }
+
+  function tick() {
+    if (state.phase === 'running') {
+      state.timeLeft--;
+      if (state.timeLeft <= 0) { state.phase = 'snipe'; state.snipeLeft = state.snipeMax; }
+    } else if (state.phase === 'snipe') {
+      state.snipeLeft--;
+      if (state.snipeLeft <= 0) { finish(); return; }
+    }
+    render();
+  }
+
+  function finish() {
+    clearInterval(interval);
+    state.phase = 'finished';
+    const sorted = Object.entries(state.participants).sort((a,b)=>b[1]-a[1]);
+    state.winner = sorted.length>0 ? sorted[0][0] : null;
+    btnStart.textContent = '▶ START';
+    render();
+  }
+
+  // TikFinity: window.addGift("username", 500)
+  window.addGift = function(username, coins) {
+    if (state.phase === 'finished') return;
+    if (state.phase === 'snipe') state.snipeLeft = state.snipeMax;
+    state.participants[username] = (state.participants[username]||0) + parseInt(coins);
+    render();
+  };
+
+  render();
+</script>
+</body>
+</html>
